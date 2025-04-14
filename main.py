@@ -86,7 +86,7 @@ def setup_dispatcher():
     dispatcher.add_handler(CommandHandler('code', code))
     dispatcher.add_handler(CommandHandler('analysis', analysis))  # Add new command for market analysis
 
-    bot.setWebhook(f'https://<your-render-app-url>/{TOKEN}')  # Replace with actual URL when deployed
+    bot.setWebhook(f'https://luxalgo-premium.onrender.com/{TOKEN}')  # Replace with actual URL when deployed
 
 # Initialize DB and Dispatcher
 init_db()
