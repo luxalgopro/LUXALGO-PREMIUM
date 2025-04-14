@@ -3,17 +3,18 @@ import sqlite3
 from flask import Flask, request
 from telegram import Bot, Update
 from telegram.ext import CommandHandler, MessageHandler, Filters, Dispatcher
-from telegram.ext import Updater
 
-TOKEN = "7501206181:AAFGPiup1j1VVXZt_9FE8rQ71px1dztGa38"  # Replace with your actual bot token
+# Bot token and admin ID
+TOKEN = "7501206181:AAFGPiup1j1VVXZt_9FE8rQ71px1dztGa38"
+ADMIN_ID = 7619488744  # Your Telegram user ID
 
-# Initialize Flask
+# Initialize Flask app
 app = Flask(__name__)
 
-# Initialize Telegram Bot
+# Initialize bot
 bot = Bot(token=TOKEN)
 
-# SQLite Database Setup
+# SQLite setup
 def init_db():
     conn = sqlite3.connect('access.db')
     c = conn.cursor()
@@ -21,11 +22,15 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Commands
+# Telegram command handlers
 def start(update, context):
     update.message.reply_text("Welcome to LUXALGO PREMIUM! To begin, enter your code using: /code <yourcode>.")
 
 def code(update, context):
+    if not context.args:
+        update.message.reply_text("Please provide a code using: /code <yourcode>")
+        return
+
     user_code = ' '.join(context.args)
     conn = sqlite3.connect('access.db')
     c = conn.cursor()
@@ -38,24 +43,46 @@ def code(update, context):
     else:
         update.message.reply_text("Invalid code. Please contact the admin for access.")
 
-# Flask routes for webhook
-@app.route(f'/{TOKEN}', methods=['POST'])
+def generate_code(update, context):
+    if update.effective_user.id != ADMIN_ID:
+        update.message.reply_text("Unauthorized access.")
+        return
+
+    if not context.args:
+        update.message.reply_text("Usage: /generate <code>")
+        return
+
+    new_code = context.args[0]
+    conn = sqlite3.connect('access.db')
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO codes (code) VALUES (?)", (new_code,))
+        conn.commit()
+        update.message.reply_text(f"Code '{new_code}' added successfully.")
+    except sqlite3.IntegrityError:
+        update.message.reply_text("This code already exists.")
+    finally:
+        conn.close()
+
+# Dispatcher setup
+dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(CommandHandler("code", code))
+dispatcher.add_handler(CommandHandler("generate", generate_code))
+
+# Webhook endpoint
+@app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(), bot)
+    update = Update.de_json(request.get_json(force=True), bot)
     dispatcher.process_update(update)
-    return 'ok'
+    return "ok"
 
-# Start function to set up commands and webhook
-def setup_dispatcher():
-    dispatcher = Dispatcher(bot, None, workers=0)
-    dispatcher.add_handler(CommandHandler('start', start))
-    dispatcher.add_handler(CommandHandler('code', code))
+# Set webhook
+@app.before_first_request
+def setup():
+    init_db()
+    bot.setWebhook(f"https://luxalgo-premium.onrender.com/{TOKEN}")
 
-    bot.setWebhook(f'https://luxalgo-premium.onrender.com/{TOKEN}')  # Replace with your actual URL when deployed
-
-# Initialize DB and Dispatcher
-init_db()
-setup_dispatcher()
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
+# Run Flask app
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
