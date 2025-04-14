@@ -2,19 +2,16 @@ import os
 import sqlite3
 from flask import Flask, request
 from telegram import Bot, Update
-from telegram.ext import CommandHandler, Dispatcher, Filters, MessageHandler
-import logging
+from telegram.ext import CommandHandler, Dispatcher
+from telegram.ext import Updater
 
-TOKEN = "7501206181:AAFGPiup1j1VVXZt_9FE8rQ71px1dztGa38"
+TOKEN = "your_bot_token_here"  # Replace with your bot token
 
 # Initialize Flask
 app = Flask(__name__)
 
 # Initialize Telegram Bot
 bot = Bot(token=TOKEN)
-
-# Global dispatcher
-dispatcher = Dispatcher(bot, None, workers=0)
 
 # SQLite Database Setup
 def init_db():
@@ -41,23 +38,38 @@ def code(update, context):
     else:
         update.message.reply_text("Invalid code. Please contact the admin for access.")
 
-# Set up Dispatcher
-dispatcher.add_handler(CommandHandler('start', start))
-dispatcher.add_handler(CommandHandler('code', code))
+# New route to add code
+@app.route('/addcode/<code>', methods=['GET'])
+def add_code(code):
+    conn = sqlite3.connect('access.db')
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO codes (code) VALUES (?)", (code,))
+        conn.commit()
+        return f"Code {code} added successfully!"
+    except sqlite3.IntegrityError:
+        return f"Code {code} already exists."
+    finally:
+        conn.close()
 
-# Webhook Route
+# Flask routes for webhook
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
+    update = Update.de_json(request.get_json(), bot)
     dispatcher.process_update(update)
     return 'ok'
 
-# Set webhook
-bot.setWebhook(f'https://luxalgo-premium.onrender.com/{TOKEN}')
+# Start function to set up commands and webhook
+def setup_dispatcher():
+    dispatcher = Dispatcher(bot, None, workers=0)
+    dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CommandHandler('code', code))
 
-# Initialize DB
+    bot.setWebhook(f'https://luxalgo-premium.onrender.com/{TOKEN}')  # Replace with actual URL when deployed
+
+# Initialize DB and Dispatcher
 init_db()
+setup_dispatcher()
 
-# Run the Flask app
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
