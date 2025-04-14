@@ -2,10 +2,10 @@ import os
 import sqlite3
 from flask import Flask, request
 from telegram import Bot, Update
-from telegram.ext import CommandHandler, Dispatcher
+from telegram.ext import CommandHandler, MessageHandler, Filters, Dispatcher
 from telegram.ext import Updater
 
-TOKEN = "your_bot_token_here"  # Replace with your bot token
+TOKEN = "7501206181:AAFGPiup1j1VVXZt_9FE8rQ71px1dztGa38"  # Replace with your actual bot token
 
 # Initialize Flask
 app = Flask(__name__)
@@ -38,20 +38,6 @@ def code(update, context):
     else:
         update.message.reply_text("Invalid code. Please contact the admin for access.")
 
-# New route to add code
-@app.route('/addcode/<code>', methods=['GET'])
-def add_code(code):
-    conn = sqlite3.connect('access.db')
-    c = conn.cursor()
-    try:
-        c.execute("INSERT INTO codes (code) VALUES (?)", (code,))
-        conn.commit()
-        return f"Code {code} added successfully!"
-    except sqlite3.IntegrityError:
-        return f"Code {code} already exists."
-    finally:
-        conn.close()
-
 # Flask routes for webhook
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
@@ -65,7 +51,7 @@ def setup_dispatcher():
     dispatcher.add_handler(CommandHandler('start', start))
     dispatcher.add_handler(CommandHandler('code', code))
 
-    bot.setWebhook(f'https://luxalgo-premium.onrender.com/{TOKEN}')  # Replace with actual URL when deployed
+    bot.setWebhook(f'https://luxalgo-premium.onrender.com/{TOKEN}')  # Replace with your actual URL when deployed
 
 # Initialize DB and Dispatcher
 init_db()
